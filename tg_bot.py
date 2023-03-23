@@ -87,7 +87,6 @@ async def listen_server():
                 pprint(event)
                 params['offset'] = event['update_id'] + 1
                 await handle_event(connect, event)
-                raise Exception
             except ConnectionError:
                 sleep(5)
                 logger.warning(f'Соединение было прервано', stack_info=True)
