@@ -87,12 +87,13 @@ async def listen_server():
                 pprint(event)
                 params['offset'] = event['update_id'] + 1
                 await handle_event(connect, event)
-            except ConnectionError as err:
+                raise Exception
+            except ConnectionError:
                 sleep(5)
-                logger.warning(f'Соединение было прервано: {err}', stack_info=True)
+                logger.warning(f'Соединение было прервано', stack_info=True)
                 continue
-            except client_exceptions.ServerTimeoutError as err:
-                logger.warning(f'Ошибка ReadTimeout: {err}', stack_info=True)
+            except client_exceptions.ServerTimeoutError:
+                logger.warning(f'Ошибка ReadTimeout', stack_info=True)
                 continue
             except Exception as err:
                 logger.exception(err)
