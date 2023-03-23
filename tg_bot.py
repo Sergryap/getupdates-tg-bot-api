@@ -3,6 +3,7 @@ import json
 from pprint import pprint
 import aiohttp
 import logging
+from aiohttp import client_exceptions
 from time import sleep
 from environs import Env
 
@@ -20,6 +21,11 @@ async def listen_server():
     """Получение событий сервера"""
     env = Env()
     env.read_env()
+
+    logger = logging.getLogger('telegram')
+    logger.setLevel(logging.WARNING)
+    logger.warning('Tg-Бот "eyelash-courses" запущен')
+
     tg_token = env.str('TOKEN')
     url = f'https://api.telegram.org/bot{tg_token}/getUpdates'
     params = {'timeout': 5, 'limit': 1}
@@ -40,10 +46,14 @@ async def listen_server():
                     await send_message(session, tg_token, chat_id, text)
             except ConnectionError as err:
                 sleep(5)
+                logger.warning(f'Соединение было прервано: {err}', stack_info=True)
+                continue
+            except client_exceptions.ServerTimeoutError as err:
+                logger.warning(f'Ошибка ReadTimeout: {err}', stack_info=True)
                 continue
             except Exception as err:
+                logger.exception(err)
                 print(err)
 
 if __name__ == '__main__':
     asyncio.run(listen_server())
-
