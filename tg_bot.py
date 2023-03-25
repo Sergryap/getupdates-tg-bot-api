@@ -7,7 +7,7 @@ import logging
 from aiohttp import client_exceptions
 from time import sleep
 from environs import Env
-from keyboard import get_start_keyboard, get_main_keyboard
+from keyboard import get_start_keyboard, get_main_keyboard, get_callback_keyboard
 from pprint import pprint
 from textwrap import dedent
 
@@ -38,9 +38,31 @@ async def start(connect, event):
             Здесь ты можешь узнать всю актуальную информацию о наших курсах и при желании оставить заявку.
             Чтобы начать нажми "MENU"             
             '''
-        await send_message(connect, event_info['chat_id'], dedent(msg), reply_markup=await get_start_keyboard())
+        buttons = [
+            ('☰ MENU', 'start'),
+            ('Предстоящие курсы', 'future_courses'),
+        ]
+        await send_message(
+            connect,
+            chat_id=event_info['chat_id'],
+            msg=dedent(msg),
+            reply_markup=await get_callback_keyboard(buttons, 2, inline=False)
+        )
         return 'START'
-    await send_message(connect, event_info['chat_id'], msg, reply_markup=await get_main_keyboard(2))
+    buttons = [
+        ('Предстоящие курсы', 'future_courses'),
+        ('Прошедшие курсы', 'past_courses'),
+        ('Ваши курсы', 'client_courses'),
+        ('Как нас найти', 'search_us'),
+        ('Галерея', 'gallery'),
+        ('Написать администратору', 'admin_msg'),
+    ]
+    await send_message(
+        connect,
+        chat_id=event_info['chat_id'],
+        msg=msg,
+        reply_markup=await get_callback_keyboard(buttons, 2)
+    )
     return 'START'
 
 

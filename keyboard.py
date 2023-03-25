@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 
 async def get_start_inline_keyboard():
@@ -63,3 +64,20 @@ async def get_main_keyboard(column: int):
     if i != 0:
         buttons.append(row)
     return json.dumps({'inline_keyboard': buttons})
+
+
+async def get_callback_keyboard(buttons: list[tuple[str, str]], column: int, inline: bool = True):
+    keyboard, row = [], []
+    i = 0
+    for label, payload in buttons:
+        i += 1
+        row.append({'text': label, 'callback_data': payload})
+        if i == column:
+            keyboard.append(row)
+            row = []
+            i = 0
+    if i != 0:
+        keyboard.append(row)
+    if inline:
+        return json.dumps({'inline_keyboard': keyboard})
+    return json.dumps({'keyboard': keyboard, 'resize_keyboard': True})
