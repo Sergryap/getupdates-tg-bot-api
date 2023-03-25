@@ -2,49 +2,73 @@ import asyncio
 import json
 import redis
 
-from pprint import pprint
 import aiohttp
 import logging
 from aiohttp import client_exceptions
 from time import sleep
 from environs import Env
+from keyboard import get_start_keyboard, get_main_keyboard
+from pprint import pprint
+from textwrap import dedent
 
 
-async def send_message(connect, chat_id, msg):
+async def send_message(connect, chat_id, msg, *, reply_markup=None):
     """Отправка сообщения через api TG"""
     url = f"https://api.telegram.org/bot{connect['token']}/sendmessage"
-    params = {'chat_id': chat_id, 'text': msg}
+    params = {
+        'chat_id': chat_id,
+        'text': msg,
+        'reply_markup': reply_markup
+    }
+    for param, value in params.items():
+        if value is None:
+            del params[param]
     async with connect['session'].get(url, params=params) as res:
         res.raise_for_status()
         return json.loads(await res.text())
 
 
 async def start(connect, event):
-    text = event['message']['text']
-    chat_id = event['message']['chat']['id']
-    await send_message(connect, chat_id, text)
-
+    event_info = await get_event_info(event)
+    start_buttons = ['/start', '+']
+    msg = 'MENU:'
+    if event_info['user_reply'] in start_buttons:
+        msg = f'''
+            Привет, {event_info['first_name']}, я бот этого чата.
+            Здесь ты можешь узнать всю актуальную информацию о наших курсах и при желании оставить заявку.
+            Чтобы начать нажми "MENU"             
+            '''
+        await send_message(connect, event_info['chat_id'], dedent(msg), reply_markup=await get_start_keyboard())
+        return 'START'
+    await send_message(connect, event_info['chat_id'], msg, reply_markup=await get_main_keyboard(2))
     return 'START'
+
+
+async def get_event_info(event):
+    if event.get('message'):
+        user_reply = event['message']['text']
+        chat_id = event['message']['chat']['id']
+        first_name = event['message']['chat']['first_name']
+    elif event.get('callback_query'):
+        user_reply = event['callback_query']['data']
+        chat_id = event['callback_query']['message']['chat']['id']
+        first_name = event['callback_query']['message']['chat']['first_name']
+    else:
+        return
+    return {
+        'user_reply': user_reply,
+        'chat_id': chat_id,
+        'first_name': first_name
+    }
 
 
 async def handle_event(connect, event):
     """Главный обработчик событий"""
-
-    if event.get('message'):
-        user_reply = event['message']['text']
-        chat_id = event['message']['chat']['id']
-    elif event.get('callback_query'):
-        user_reply = event['callback_query']['data']
-        chat_id = event['callback_query']['message']['chat']['id']
-    elif event.get('pre_checkout_query'):
-        user_reply = ''
-        chat_id = event['effective']['user']['id']
-    else:
-        return
-    if user_reply.lower() in ['start', '/start', 'начать', 'старт', '+']:
+    event_info = await get_event_info(event)
+    if event_info['user_reply'].lower() in ['start', '/start', 'начать', 'старт', '+']:
         user_state = 'START'
     else:
-        user_state = connect['redis_db'].get(f'tg_{chat_id}_bot').decode('utf-8')
+        user_state = connect['redis_db'].get(f'tg_{event_info["chat_id"]}_bot').decode('utf-8')
 
     states_functions = {
         'START': start,
@@ -54,7 +78,7 @@ async def handle_event(connect, event):
     }
     state_handler = states_functions[user_state]
     bot_state = await state_handler(connect, event)
-    connect['redis_db'].set(f'tg_{chat_id}_bot', bot_state)
+    connect['redis_db'].set(f'tg_{event_info["chat_id"]}_bot', bot_state)
 
 
 async def listen_server():
