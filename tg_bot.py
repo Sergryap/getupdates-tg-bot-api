@@ -7,7 +7,7 @@ import logging
 from aiohttp import client_exceptions
 from time import sleep
 from environs import Env
-from keyboard import get_start_keyboard, get_main_keyboard, get_callback_keyboard
+from keyboard import get_callback_keyboard
 from pprint import pprint
 from textwrap import dedent
 
